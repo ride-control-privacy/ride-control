@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ride Control: unofficial scooter companion</title>
+<meta name="description" content="Ride Control is an unofficial Android companion app for Bluetooth e-scooters: live dashboard, ride tracking, battery insights and a 3D model.">
+<meta name="theme-color" content="#0a0d14">
+<link rel="icon" href="favicon.png">
+<style>
+:root{
+  --bg:#0a0d14; --bg2:#0f141d; --card:#121823; --line:#232c3b;
+  --text:#f5f7fa; --muted:#98a1b3; --acc:#ff6b1a; --acc2:#ff8a3d; --blue:#3c46be;
+  --r:22px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font:16px/1.55 "Helvetica Neue",Arial,system-ui,sans-serif;min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+h1,h2,h3,.black{font-family:"Arial Black","Helvetica Neue",Arial,sans-serif;font-weight:900;letter-spacing:-.01em;line-height:1.1}
+a{color:var(--acc2)}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+
+/* animated background */
+.bg{position:fixed;inset:0;z-index:-1;overflow:hidden;background:var(--bg)}
+.blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.55;will-change:transform}
+.b1{width:60vmax;height:60vmax;left:-20vmax;top:-22vmax;background:radial-gradient(circle,#3c46be 0,transparent 65%);animation:f1 16s ease-in-out infinite alternate}
+.b2{width:55vmax;height:55vmax;right:-22vmax;bottom:-24vmax;background:radial-gradient(circle,#ff5a14 0,transparent 65%);animation:f2 19s ease-in-out infinite alternate}
+@keyframes f1{to{transform:translate(12vmax,10vmax) scale(1.15)}}
+@keyframes f2{to{transform:translate(-10vmax,-8vmax) scale(1.1)}}
+
+/* intro */
+#intro{position:fixed;inset:0;z-index:100;background:var(--bg);display:grid;place-items:center;transition:opacity .7s ease,visibility .7s}
+#intro.done{opacity:0;visibility:hidden;pointer-events:none}
+.intro-in{text-align:center;position:relative}
+.ring{width:210px;height:210px;margin:0 auto 26px;position:relative}
+.ring svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(135deg)}
+.ring circle{fill:none;stroke-width:9;stroke-linecap:round}
+.ring .track{stroke:#1c2433;stroke-dasharray:380 126}
+.ring .fill{stroke:var(--acc);stroke-dasharray:0 506;animation:sweep 1.5s .25s cubic-bezier(.2,.8,.2,1) forwards;filter:drop-shadow(0 0 8px rgba(255,107,26,.7))}
+@keyframes sweep{to{stroke-dasharray:380 126}}
+.ring img{position:absolute;inset:46px;width:118px;height:118px;border-radius:28px;opacity:0;transform:scale(.6);animation:pop .7s .55s cubic-bezier(.2,1.4,.4,1) forwards}
+@keyframes pop{to{opacity:1;transform:none}}
+.intro-t{font-size:clamp(34px,8vw,56px);opacity:0;transform:translateY(14px);animation:up .7s 1s ease forwards}
+.intro-s{color:var(--acc);font-weight:700;margin-top:10px;opacity:0;animation:up .7s 1.3s ease forwards;letter-spacing:.03em}
+@keyframes up{to{opacity:1;transform:none}}
+.skip{position:absolute;bottom:28px;left:0;right:0;text-align:center;color:var(--muted);font-size:13px;opacity:0;animation:up .5s 1.2s forwards}
+
+/* top bar */
+header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 0}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text);cursor:pointer;background:none;border:0;font:inherit}
+.brand img{width:38px;height:38px;border-radius:10px}
+.brand b{font-family:"Arial Black",Arial,sans-serif;font-size:18px}
+.lang{display:flex;gap:4px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:3px}
+.lang button{border:0;background:none;color:var(--muted);font:700 13px Arial,sans-serif;padding:6px 12px;border-radius:999px;cursor:pointer}
+.lang button.on{background:var(--acc);color:#fff}
+
+/* views */
+.view{display:none;animation:fade .5s ease}
+.view.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* menu */
+.hero{text-align:center;padding:44px 0 28px}
+.hero img.logo{width:104px;height:104px;border-radius:26px;box-shadow:0 14px 50px rgba(255,107,26,.35)}
+.hero h1{font-size:clamp(40px,9vw,76px);margin:22px 0 12px}
+.hero p{color:var(--muted);max-width:560px;margin:0 auto;font-size:18px}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:34px 0 18px}
+.choice{position:relative;text-align:left;border:1px solid var(--line);background:linear-gradient(160deg,rgba(255,255,255,.05),rgba(255,255,255,.015));color:var(--text);border-radius:var(--r);padding:30px 26px 28px;cursor:pointer;overflow:hidden;font:inherit;transition:transform .25s ease,border-color .25s,box-shadow .25s;backdrop-filter:blur(8px)}
+.choice:hover,.choice:focus-visible{transform:translateY(-5px);border-color:var(--acc);box-shadow:0 18px 50px rgba(255,107,26,.2);outline:0}
+.choice .ic{width:54px;height:54px;border-radius:16px;display:grid;place-items:center;background:rgba(255,107,26,.15);color:var(--acc2);margin-bottom:18px}
+.choice .ic svg{width:28px;height:28px}
+.choice h2{font-size:28px;margin-bottom:8px}
+.choice p{color:var(--muted)}
+.choice .go{display:inline-block;margin-top:18px;color:var(--acc2);font-weight:700}
+.notice{text-align:center;color:var(--muted);font-size:13px;margin-top:12px}
+
+/* sections */
+.back{display:inline-flex;align-items:center;gap:8px;background:none;border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:8px 16px;font:700 14px Arial,sans-serif;cursor:pointer;margin:10px 0 24px}
+.back:hover{color:var(--text);border-color:var(--acc)}
+.title{font-size:clamp(30px,6vw,48px);margin-bottom:12px}
+.lead{color:var(--muted);font-size:18px;max-width:680px}
+.badge{display:inline-block;background:rgba(255,107,26,.15);color:var(--acc2);border:1px solid rgba(255,107,26,.4);border-radius:999px;padding:6px 14px;font-weight:700;font-size:14px;margin-top:20px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:34px 0}
+.feat{border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:22px}
+.feat h3{font-size:18px;margin-bottom:10px;color:var(--acc2)}
+.feat ul{list-style:none;color:var(--muted);font-size:15px}
+.feat li{padding:3px 0 3px 18px;position:relative}
+.feat li:before{content:"";position:absolute;left:0;top:11px;width:7px;height:7px;border-radius:50%;background:var(--acc)}
+.shots{display:flex;gap:22px;overflow-x:auto;padding:10px 20px 34px;margin:0 -20px;scroll-snap-type:x mandatory;scrollbar-width:thin;scrollbar-color:#2b3445 transparent}
+.shots::-webkit-scrollbar{height:8px}.shots::-webkit-scrollbar-track{background:transparent}.shots::-webkit-scrollbar-thumb{background:#2b3445;border-radius:8px}
+.shot{flex:0 0 auto;scroll-snap-align:center;width:230px;text-align:center}
+.phone{background:#04060a;border:2px solid #2b3445;border-radius:30px;padding:8px;box-shadow:0 20px 60px rgba(255,107,26,.18)}
+.phone img{width:100%;display:block;border-radius:22px}
+.shot span{display:block;margin-top:12px;color:var(--muted);font-size:14px}
+.cta{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin:8px 0 8px}
+.btn{display:inline-block;border:0;background:linear-gradient(135deg,var(--acc),#ff8a3d);color:#fff;font:900 16px "Arial Black",Arial,sans-serif;padding:15px 26px;border-radius:14px;cursor:pointer;text-decoration:none;box-shadow:0 10px 30px rgba(255,107,26,.35);transition:transform .2s,box-shadow .2s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 14px 38px rgba(255,107,26,.5)}
+.btn[disabled]{opacity:.55;cursor:wait;transform:none}
+.btn.ghost{background:none;border:1px solid var(--line);box-shadow:none;color:var(--text)}
+.faq details{border:1px solid var(--line);background:var(--card);border-radius:16px;padding:16px 20px;margin-bottom:10px}
+.faq summary{cursor:pointer;font-weight:700}
+.faq p{color:var(--muted);margin-top:10px}
+
+/* tester */
+.steps{counter-reset:s;display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin:28px 0}
+.step{counter-increment:s;border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:20px 20px 20px 66px;position:relative;color:var(--muted)}
+.step:before{content:counter(s);position:absolute;left:18px;top:18px;width:34px;height:34px;border-radius:50%;background:var(--acc);color:#fff;font:900 16px "Arial Black",Arial;display:grid;place-items:center}
+.step b{color:var(--text);display:block;margin-bottom:2px}
+form{border:1px solid var(--line);background:linear-gradient(160deg,rgba(255,255,255,.05),rgba(255,255,255,.015));border-radius:var(--r);padding:28px;margin:10px 0 40px;backdrop-filter:blur(8px)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+label{display:block;font-weight:700;font-size:14px;margin:0 0 6px}
+.f{margin-bottom:16px}
+.f small{display:block;color:var(--muted);margin-top:5px;font-size:12.5px}
+input[type=email],input[type=text],select,textarea{width:100%;background:#0b1018;border:1px solid var(--line);color:var(--text);border-radius:12px;padding:13px 14px;font:inherit}
+textarea{min-height:150px;resize:vertical}
+select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='%2398a1b3' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}
+input:focus,select:focus,textarea:focus{outline:0;border-color:var(--acc);box-shadow:0 0 0 3px rgba(255,107,26,.2)}
+.chk{font-weight:400;display:flex;gap:10px;align-items:flex-start;color:var(--muted);font-size:14px;margin:6px 0 18px}
+.chk input{margin-top:4px;accent-color:var(--acc)}
+.hp{position:absolute;left:-9999px;opacity:0}
+.msg{margin-top:16px;padding:14px 16px;border-radius:12px;display:none;font-weight:700}
+.msg.ok{display:block;background:rgba(40,200,120,.14);border:1px solid rgba(40,200,120,.5);color:#6fe0a8}
+.msg.err{display:block;background:rgba(255,80,80,.12);border:1px solid rgba(255,80,80,.5);color:#ff9a9a}
+
+footer{border-top:1px solid var(--line);margin-top:30px;padding:26px 0 44px;color:var(--muted);font-size:13px;text-align:center}
+footer p{margin:5px auto;max-width:760px}
+
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease}
+.reveal.in{opacity:1;transform:none}
+
+@media(max-width:760px){
+  .choices{grid-template-columns:1fr}
+  .grid{grid-template-columns:1fr}
+  .steps,.row{grid-template-columns:1fr}
+  .hero{padding-top:20px}
+}
+@media(prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"><div class="blob b1"></div><div class="blob b2"></div></div>
+
+<!-- intro animation -->
+<div id="intro" role="presentation">
+  <div class="intro-in">
+    <div class="ring">
+      <svg viewBox="0 0 170 170"><circle class="track" cx="85" cy="85" r="80"/><circle class="fill" cx="85" cy="85" r="80"/></svg>
+      <img src="icon.png" alt="">
+    </div>
+    <div class="intro-t black">Ride Control</div>
+    <div class="intro-s" data-i18n="intro_s">KNOW YOUR SCOOTER</div>
+  </div>
+  <div class="skip" data-i18n="skip">Tap to skip</div>
+</div>
+
+<div class="wrap">
+  <header class="top">
+    <button class="brand" onclick="go('')" aria-label="Ride Control"><img src="icon.png" alt=""><b>Ride Control</b></button>
+    <div class="lang" role="group" aria-label="Language">
+      <button id="l-en" onclick="setLang('en')">EN</button>
+      <button id="l-uk" onclick="setLang('uk')">УКР</button>
+    </div>
+  </header>
+
+  <!-- MENU -->
+  <main id="v-menu" class="view on">
+    <section class="hero">
+      <img class="logo" src="icon.png" alt="Ride Control">
+      <h1>Ride Control</h1>
+      <p data-i18n="tag">Unofficial companion app for Bluetooth e-scooters. Live dashboard, rides, battery insights and a 3D model.</p>
+    </section>
+    <div class="choices">
+      <button class="choice reveal" onclick="go('user')">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7"/></svg></div>
+        <h2 data-i18n="c_user">I'm a user</h2>
+        <p data-i18n="c_user_p">See what the app does, how it looks and when it arrives on Google Play.</p>
+        <span class="go" data-i18n="open">Open →</span>
+      </button>
+      <button class="choice reveal" onclick="go('tester')">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6L4.5 19a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L14 9V3"/><path d="M7.5 15h9"/></svg></div>
+        <h2 data-i18n="c_test">I'm a tester</h2>
+        <p data-i18n="c_test_p">Join the closed test and tell me what to change. Your feedback goes straight to the developer.</p>
+        <span class="go" data-i18n="open">Open →</span>
+      </button>
+    </div>
+    <p class="notice" data-i18n="notice">Unofficial app. Not affiliated with any scooter manufacturer.</p>
+  </main>
+
+  <!-- USER -->
+  <main id="v-user" class="view">
+    <button class="back" onclick="go('')">← <span data-i18n="back">Back</span></button>
+    <h1 class="title" data-i18n="u_title">Your scooter, on one screen</h1>
+    <p class="lead" data-i18n="u_lead">Connect your Bluetooth scooter and see speed, battery, voltage and riding mode live. Record your rides, learn your real range and keep everything on your phone.</p>
+    <span class="badge" data-i18n="soon">Coming soon to Google Play</span>
+
+    <div class="grid">
+      <div class="feat reveal"><h3 data-i18n="f1">Live dashboard</h3><ul>
+        <li data-i18n="f1a">Speed, charge, voltage, mileage</li><li data-i18n="f1b">Riding mode, cruise control, Zero Start</li><li data-i18n="f1c">Stays connected in the background</li></ul></div>
+      <div class="feat reveal"><h3 data-i18n="f2">Ride tracking</h3><ul>
+        <li data-i18n="f2a">Route on a map, distance, speeds</li><li data-i18n="f2b">Ride history and saved rides</li><li data-i18n="f2c">Daily and weekly goals, streaks</li></ul></div>
+      <div class="feat reveal"><h3 data-i18n="f3">Battery insights</h3><ul>
+        <li data-i18n="f3a">Estimated battery health</li><li data-i18n="f3b">Voltage sag and learning range estimate</li><li data-i18n="f3c">Acceleration timer 0–30 / 50 / 70</li></ul></div>
+    </div>
+
+    <h2 class="title" style="font-size:30px" data-i18n="shots">Screenshots</h2>
+    <div class="shots">
+      <figure class="shot"><div class="phone"><img src="shot-dash.jpg" alt="" loading="lazy"></div><span data-i18n="s1">Live dashboard</span></figure>
+      <figure class="shot"><div class="phone"><img src="shot-rides.jpg" alt="" loading="lazy"></div><span data-i18n="s2">Ride history</span></figure>
+      <figure class="shot"><div class="phone"><img src="shot-cons.jpg" alt="" loading="lazy"></div><span data-i18n="s3">Real battery use</span></figure>
+      <figure class="shot"><div class="phone"><img src="shot-battery.jpg" alt="" loading="lazy"></div><span data-i18n="s4">Battery insights</span></figure>
+      <figure class="shot"><div class="phone"><img src="shot-model.jpg" alt="" loading="lazy"></div><span data-i18n="s5">3D scooter model</span></figure>
+      <figure class="shot"><div class="phone"><img src="shot-goals.jpg" alt="" loading="lazy"></div><span data-i18n="s6">Goals and streaks</span></figure>
+      <figure class="shot"><div class="phone"><img src="shot-achv.jpg" alt="" loading="lazy"></div><span data-i18n="s7">Achievements</span></figure>
+    </div>
+
+    <div class="cta">
+      <button class="btn" onclick="go('tester')" data-i18n="join_btn">Join the test</button>
+      <a class="btn ghost" id="privacy-a" data-i18n="priv" href="#">Privacy policy</a>
+    </div>
+
+    <h2 class="title" style="font-size:30px;margin-top:40px" data-i18n="faq">Good to know</h2>
+    <div class="faq">
+      <details><summary data-i18n="q1">Which scooters does it work with?</summary><p data-i18n="a1">Bluetooth LE G-series scooters. Verified on KuKirin G2, G3, G4 and G2 Master. Features differ by model.</p></details>
+      <details><summary data-i18n="q2">Do I need an account?</summary><p data-i18n="a2">No accounts, no ads, no analytics. Your data stays on your phone.</p></details>
+      <details><summary data-i18n="q3">Is it official?</summary><p data-i18n="a3">No. Ride Control is an independent, unofficial app and is not affiliated with any scooter manufacturer.</p></details>
+    </div>
+  </main>
+
+  <!-- TESTER -->
+  <main id="v-tester" class="view">
+    <button class="back" onclick="go('')">← <span data-i18n="back">Back</span></button>
+    <h1 class="title" data-i18n="t_title">Help me test Ride Control</h1>
+    <p class="lead" data-i18n="t_lead">The app is in closed testing on Google Play. Tell me your Google account and what to improve, and I will add you to the test.</p>
+
+    <div class="steps">
+      <div class="step reveal"><b data-i18n="st1">Send your Google account</b><span data-i18n="st1p">Use the form below with the Gmail you use on your Android phone.</span></div>
+      <div class="step reveal"><b data-i18n="st2">Open the test link</b><span data-i18n="st2p">I will reply with the Google Play test link. Tap "Become a tester".</span></div>
+      <div class="step reveal"><b data-i18n="st3">Install and use it</b><span data-i18n="st3p">Keep it installed for 14 days and open it now and then.</span></div>
+      <div class="step reveal"><b data-i18n="st4">Tell me what to change</b><span data-i18n="st4p">Send ideas and bugs here at any time.</span></div>
+    </div>
+
+    <form id="fb" novalidate>
+      <div class="row">
+        <div class="f"><label for="email" data-i18n="l_email">Your Google account (email)</label>
+          <input id="email" name="email" type="email" required autocomplete="email" placeholder="name@gmail.com">
+          <small data-i18n="h_email">It must be the account used in Google Play on your phone.</small></div>
+        <div class="f"><label for="scooter" data-i18n="l_scooter">Your scooter</label>
+          <select id="scooter" name="scooter">
+            <option value="">—</option><option>KuKirin G2</option><option>KuKirin G3</option><option>KuKirin G4</option><option>KuKirin G2 Master</option><option data-i18n="other">Other</option><option data-i18n="none">No scooter yet</option>
+          </select></div>
+      </div>
+      <div class="f"><label for="device" data-i18n="l_device">Phone and Android version (optional)</label>
+        <input id="device" name="device" type="text" maxlength="80" placeholder="Samsung A54, Android 14"></div>
+      <div class="f"><label for="message" data-i18n="l_msg">What should I change or fix?</label>
+        <textarea id="message" name="message" required minlength="10" maxlength="3000" data-i18n-ph="ph_msg" placeholder="Ideas, bugs, things you did not understand…"></textarea></div>
+      <input class="hp" type="checkbox" name="botcheck" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <label class="chk"><input type="checkbox" id="consent" required><span data-i18n="consent">I agree that my email and message are sent to the developer to add me to the test and to reply. They are not shared with anyone else.</span></label>
+      <button class="btn" id="send" type="submit" data-i18n="send">Send</button>
+      <div id="msg" class="msg" role="status" aria-live="polite"></div>
+    </form>
+  </main>
+
+  <footer>
+    <p data-i18n="foot1">Ride Control is an unofficial app and is not affiliated with any scooter manufacturer or brand. Product names belong to their owners and are used only to describe compatibility.</p>
+    <p>Google Play is a trademark of Google LLC.</p>
+    <p data-i18n="foot3">3D models: bobbegaming5, CC BY 4.0, modified. Map data © OpenStreetMap contributors.</p>
+    <p><a id="privacy-b" href="#" data-i18n="priv">Privacy policy</a></p>
+  </footer>
+</div>
+
+<script>
+/* ===== settings (edit these) ===== */
+var PRIVACY_URL = "https://ride-control-privacy.github.io/ride-control-privacy/";
+var OWNER_EMAIL = "d1.company.ceo@gmail.com";          // fallback: opens the visitor's mail app
+var FORM_ENDPOINT = "https://api.web3forms.com/submit"; // form relay that forwards messages to the owner
+var ACCESS_KEY = "";                                    // paste the Web3Forms access key here
+/* ================================= */
+
+var T = {
+ en:{
+  intro_s:"KNOW YOUR SCOOTER", skip:"Tap to skip",
+  tag:"Unofficial companion app for Bluetooth e-scooters. Live dashboard, rides, battery insights and a 3D model.",
+  c_user:"I'm a user", c_user_p:"See what the app does, how it looks and when it arrives on Google Play.",
+  c_test:"I'm a tester", c_test_p:"Join the closed test and tell me what to change. Your feedback goes straight to the developer.",
+  open:"Open →", notice:"Unofficial app. Not affiliated with any scooter manufacturer.", back:"Back",
+  u_title:"Your scooter, on one screen", u_lead:"Connect your Bluetooth scooter and see speed, battery, voltage and riding mode live. Record your rides, learn your real range and keep everything on your phone.",
+  soon:"Coming soon to Google Play",
+  f1:"Live dashboard", f1a:"Speed, charge, voltage, mileage", f1b:"Riding mode, cruise control, Zero Start", f1c:"Stays connected in the background",
+  f2:"Ride tracking", f2a:"Route on a map, distance, speeds", f2b:"Ride history and saved rides", f2c:"Daily and weekly goals, streaks",
+  f3:"Battery insights", f3a:"Estimated battery health", f3b:"Voltage sag and learning range estimate", f3c:"Acceleration timer 0–30 / 50 / 70",
+  shots:"Screenshots", s1:"Live dashboard", s2:"Ride history", s3:"Real battery use", s4:"Battery insights", s5:"3D scooter model", s6:"Goals and streaks", s7:"Achievements",
+  join_btn:"Join the test", priv:"Privacy policy", faq:"Good to know",
+  q1:"Which scooters does it work with?", a1:"Bluetooth LE G-series scooters. Verified on KuKirin G2, G3, G4 and G2 Master. Features differ by model.",
+  q2:"Do I need an account?", a2:"No accounts, no ads, no analytics. Your data stays on your phone.",
+  q3:"Is it official?", a3:"No. Ride Control is an independent, unofficial app and is not affiliated with any scooter manufacturer.",
+  t_title:"Help me test Ride Control", t_lead:"The app is in closed testing on Google Play. Tell me your Google account and what to improve, and I will add you to the test.",
+  st1:"Send your Google account", st1p:"Use the form below with the Gmail you use on your Android phone.",
+  st2:"Open the test link", st2p:"I will reply with the Google Play test link. Tap “Become a tester”.",
+  st3:"Install and use it", st3p:"Keep it installed for 14 days and open it now and then.",
+  st4:"Tell me what to change", st4p:"Send ideas and bugs here at any time.",
+  l_email:"Your Google account (email)", h_email:"It must be the account used in Google Play on your phone.",
+  l_scooter:"Your scooter", other:"Other", none:"No scooter yet", l_device:"Phone and Android version (optional)",
+  l_msg:"What should I change or fix?", ph_msg:"Ideas, bugs, things you did not understand…",
+  consent:"I agree that my email and message are sent to the developer to add me to the test and to reply. They are not shared with anyone else.",
+  send:"Send", sending:"Sending…",
+  ok:"Thank you! Your message was sent. I will reply to your email.",
+  err_email:"Please enter a valid email.", err_msg:"Please write at least 10 characters.", err_consent:"Please tick the agreement box.",
+  err_send:"Could not send. Your mail app will open instead.",
+  foot1:"Ride Control is an unofficial app and is not affiliated with any scooter manufacturer or brand. Product names belong to their owners and are used only to describe compatibility.",
+  foot3:"3D models: bobbegaming5, CC BY 4.0, modified. Map data © OpenStreetMap contributors."
+ },
+ uk:{
+  intro_s:"ЗНАЙ СВІЙ САМОКАТ", skip:"Торкніться, щоб пропустити",
+  tag:"Неофіційний застосунок для Bluetooth-самокатів. Панель наживо, поїздки, аналітика батареї та 3D-модель.",
+  c_user:"Я користувач", c_user_p:"Дізнайтесь, що вміє застосунок, як він виглядає і коли з'явиться в Google Play.",
+  c_test:"Я тестер", c_test_p:"Приєднуйтесь до закритого тесту й напишіть, що змінити. Відгук іде просто розробнику.",
+  open:"Відкрити →", notice:"Неофіційний застосунок. Не пов'язаний з виробниками самокатів.", back:"Назад",
+  u_title:"Ваш самокат на одному екрані", u_lead:"Підключіть Bluetooth-самокат і бачте швидкість, батарею, напругу й режим наживо. Записуйте поїздки, дізнавайтесь реальний запас ходу й тримайте все на телефоні.",
+  soon:"Скоро в Google Play",
+  f1:"Панель наживо", f1a:"Швидкість, заряд, напруга, пробіг", f1b:"Режим, круїз, Zero Start", f1c:"Тримає зв'язок у фоні",
+  f2:"Запис поїздок", f2a:"Маршрут на карті, дистанція, швидкість", f2b:"Історія й збережені поїздки", f2c:"Денні й тижневі цілі, серії",
+  f3:"Аналітика батареї", f3a:"Оцінка здоров'я батареї", f3b:"Просідання напруги й прогноз запасу ходу", f3c:"Таймер розгону 0–30 / 50 / 70",
+  shots:"Скриншоти", s1:"Панель наживо", s2:"Історія поїздок", s3:"Реальна витрата батареї", s4:"Аналітика батареї", s5:"3D-модель самоката", s6:"Цілі та серії", s7:"Досягнення",
+  join_btn:"Приєднатися до тесту", priv:"Політика конфіденційності", faq:"Корисно знати",
+  q1:"З якими самокатами працює?", a1:"З Bluetooth LE самокатами серії G. Перевірено на KuKirin G2, G3, G4 і G2 Master. Можливості залежать від моделі.",
+  q2:"Потрібен акаунт?", a2:"Без акаунтів, реклами й аналітики. Ваші дані лишаються на телефоні.",
+  q3:"Це офіційний застосунок?", a3:"Ні. Ride Control це незалежний неофіційний застосунок, не пов'язаний з жодним виробником самокатів.",
+  t_title:"Допоможіть протестувати Ride Control", t_lead:"Застосунок у закритому тестуванні в Google Play. Напишіть свій Google-акаунт і що покращити, і я додам вас до тесту.",
+  st1:"Надішліть Google-акаунт", st1p:"Заповніть форму нижче з Gmail, яким користуєтесь на Android.",
+  st2:"Відкрийте посилання на тест", st2p:"Я надішлю у відповідь посилання Google Play. Натисніть «Стати тестувальником».",
+  st3:"Встановіть і користуйтесь", st3p:"Тримайте встановленим 14 днів і іноді відкривайте.",
+  st4:"Напишіть, що змінити", st4p:"Ідеї й помилки можна надсилати тут будь-коли.",
+  l_email:"Ваш Google-акаунт (пошта)", h_email:"Це має бути акаунт, яким користуєтесь у Google Play на телефоні.",
+  l_scooter:"Ваш самокат", other:"Інший", none:"Самоката ще немає", l_device:"Телефон і версія Android (необов'язково)",
+  l_msg:"Що змінити або виправити?", ph_msg:"Ідеї, помилки, що було незрозуміло…",
+  consent:"Погоджуюсь, що моя пошта й повідомлення надсилаються розробнику, щоб додати мене до тесту та відповісти. Їх не передають нікому іншому.",
+  send:"Надіслати", sending:"Надсилаю…",
+  ok:"Дякую! Повідомлення надіслано. Я відповім на вашу пошту.",
+  err_email:"Вкажіть правильну пошту.", err_msg:"Напишіть хоча б 10 символів.", err_consent:"Поставте галочку згоди.",
+  err_send:"Не вдалося надіслати. Замість цього відкриється ваша пошта.",
+  foot1:"Ride Control це неофіційний застосунок, не пов'язаний з жодним виробником чи брендом самокатів. Назви продуктів належать їхнім власникам і вживаються лише для опису сумісності.",
+  foot3:"3D-моделі: bobbegaming5, CC BY 4.0, змінено. Дані карти © OpenStreetMap contributors."
+ }
+};
+var lang = ((navigator.language||"en").toLowerCase().indexOf("uk")===0) ? "uk" : "en";
+try{ var saved = localStorage.getItem("rc_lang"); if(saved) lang = saved; }catch(e){}
+
+function setLang(l){
+  lang = l; try{localStorage.setItem("rc_lang",l)}catch(e){}
+  document.documentElement.lang = l;
+  document.querySelectorAll("[data-i18n]").forEach(function(el){var v=T[l][el.getAttribute("data-i18n")]; if(v!==undefined) el.textContent=v;});
+  document.querySelectorAll("[data-i18n-ph]").forEach(function(el){el.placeholder=T[l][el.getAttribute("data-i18n-ph")]||"";});
+  document.getElementById("l-en").classList.toggle("on", l==="en");
+  document.getElementById("l-uk").classList.toggle("on", l==="uk");
+}
+function t(k){return T[lang][k]||k}
+
+/* routing: #user / #tester */
+function go(v){ location.hash = v; }
+function route(){
+  var h = location.hash.replace("#","");
+  ["menu","user","tester"].forEach(function(n){document.getElementById("v-"+n).classList.toggle("on", n===(h||"menu"));});
+  window.scrollTo(0,0); observe();
+}
+window.addEventListener("hashchange", route);
+
+/* scroll reveal */
+var io = ("IntersectionObserver" in window) ? new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target);}})},{threshold:.15}) : null;
+function observe(){document.querySelectorAll(".reveal:not(.in)").forEach(function(el){ if(io) io.observe(el); else el.classList.add("in"); });}
+
+/* intro */
+var intro = document.getElementById("intro");
+function endIntro(){ intro.classList.add("done"); }
+intro.addEventListener("click", endIntro);
+setTimeout(endIntro, 2900);
+
+/* form */
+var fb = document.getElementById("fb"), msg = document.getElementById("msg"), send = document.getElementById("send");
+function show(cls, text){ msg.className = "msg " + cls; msg.textContent = text; }
+function mailtoFallback(d){
+  var body = "Email: "+d.email+"\nScooter: "+(d.scooter||"-")+"\nDevice: "+(d.device||"-")+"\n\n"+d.message;
+  location.href = "mailto:"+OWNER_EMAIL+"?subject="+encodeURIComponent("Ride Control tester feedback")+"&body="+encodeURIComponent(body);
+}
+fb.addEventListener("submit", function(ev){
+  ev.preventDefault();
+  var d = { email: fb.email.value.trim(), scooter: fb.scooter.value, device: fb.device.value.trim(), message: fb.message.value.trim() };
+  if(fb.botcheck.checked) return;
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.email)) return show("err", t("err_email"));
+  if(d.message.length < 10) return show("err", t("err_msg"));
+  if(!document.getElementById("consent").checked) return show("err", t("err_consent"));
+  if(!ACCESS_KEY){ show("err", t("err_send")); setTimeout(function(){mailtoFallback(d)}, 900); return; }
+  send.disabled = true; send.textContent = t("sending"); msg.className = "msg";
+  fetch(FORM_ENDPOINT, { method:"POST", headers:{"Content-Type":"application/json","Accept":"application/json"},
+    body: JSON.stringify({ access_key: ACCESS_KEY, subject: "Ride Control tester feedback", from_name: "Ride Control website",
+      email: d.email, scooter: d.scooter, device: d.device, message: d.message, botcheck: "" }) })
+  .then(function(r){return r.json()}).then(function(j){
+    if(j && j.success){ show("ok", t("ok")); fb.reset(); } else { throw new Error("fail"); }
+  }).catch(function(){ show("err", t("err_send")); setTimeout(function(){mailtoFallback(d)}, 900); })
+  .finally(function(){ send.disabled=false; send.textContent=t("send"); });
+});
+
+document.getElementById("privacy-a").href = PRIVACY_URL;
+document.getElementById("privacy-b").href = PRIVACY_URL;
+setLang(lang); route();
+</script>
+</body>
+</html>
